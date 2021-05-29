@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
             * Eger komut satirinda pipe girilmis ise uygun sekilde boru hattini olusturun.
                     */
 
-                int pipe_fd1[2];
+                int pipe_fd1[2],pipe_fd2[2];
                 // int pipe_fd2[2];
 
                 /* TODO: Bu noktada ise cocuk surec yaratmaya baslayacagiz. Eger pipe varsa parent surec iki 
@@ -133,13 +133,13 @@ int main(int argc, char *argv[])
 
                 int child_retval1 = -1, child_retval2 = -1;
                 int fstat, sstat;
-                char concat_str[4096];
+                char concat_str[4096], buffer[4096], buffer2[4096];
                 int file_desc;
                 int num_read;
-                FILE *fptr;
+                FILE *fptr, *fptr2;
                 if (cl_ptr->has_pipe)
                 {
-                    if (pipe(pipe_fd1) == -1)
+                    if (pipe(pipe_fd1) == -1 || pipe(pipe_fd2) == -1)
                     {
                         perror("Can't create pipe!");
                         shell_free_args(cl_ptr);
@@ -157,39 +157,25 @@ int main(int argc, char *argv[])
                     if (cl_ptr->has_pipe)
                     {
 
-                        file_desc = open("./dup2.txt", O_WRONLY | O_APPEND);
+                        file_desc = open("output.txt", O_WRONLY);
                         if (file_desc < 0)
                         {
                             perror("Error opening the file\n");
                             shell_free_args(cl_ptr);
                             exit(EXIT_FAILURE);
+                            break;
                         }
                         dup2(file_desc, STDOUT_FILENO);
                         fres = shell_exec_cmd(cl_ptr->first_argv);
                         close(file_desc);
-                        char c;
-                        fptr = fopen("dub2.txt", "r");
-                        for (int i = 0; i < 4096 && c != EOF; i++)
-                        {
-                            /* code */
-                            c = fgetc(fptr);
-                            concat_str[i] = c;
-                        }
 
-                        if (close(pipe_fd1[0]) == -1) // okuma ucu
-                        {
-                            fprintf(stderr, "Can't close read side of pipe!");
-                            shell_free_args(cl_ptr);
-                            exit(EXIT_FAILURE);
-                        }
-                        write(pipe_fd1[1], concat_str, strlen(concat_str) + 1);
-
-                        if (close(pipe_fd1[1]) == -1) // yazma ucu
-                        {
-                            fprintf(stderr, "Can't close write side of pipe!");
-                            shell_free_args(cl_ptr);
-                            exit(EXIT_FAILURE);
-                        }
+                        
+                        close(pipe_fd2[0]);
+                        char txt[] = "output.txt|\0";
+                        write(pipe_fd2[1], txt, sizeof(txt)+1);
+                        //close(pipe_fd1[0]);
+                        //close(pipe_fd1[1]);
+                        close(pipe_fd2[1]);
                         shell_free_args(cl_ptr);
                     }
                     else
@@ -209,47 +195,45 @@ int main(int argc, char *argv[])
                         printf("Exit status of the first child was %d\n",
                                child_retval1);
                     }
-                    if(child_retval1 == 1)
+                    if (child_retval1 == 1)
                         continue;
                     break;
                 }
                 // parent goes here
                 if (cl_ptr->has_pipe)
                 {
-                    printf("Pipe var \n");
-                    read(pipe_fd1[0], concat_str, strlen(concat_str));
-                    write(pipe_fd1[1], concat_str, strlen(concat_str) + 1);
-                    if (close(pipe_fd1[0]) == -1 || close(pipe_fd1[1] == -1))
-                    {
-                        perror("pipe closing errror at parent!");
-                        exit(EXIT_FAILURE);
-                    }
-
+                    //printf("Pipe var \n");
+                    //close(pipe_fd2[1]);
+                    //read(pipe_fd2[0], buffer,11);
+                    //close(pipe_fd2[0]);
+                    //close(pipe_fd1[1]);
+                    //printf("pipe buffer: %s\n", buffer);
+                    
+                    write(pipe_fd1[1], "output.txt\0",11);
+                    //close(pipe_fd1[1]);
                     switch ((second_child = fork()))
                     {
                     case -1:
                         perror("Fork Failed\n");
                         break;
                     case 0: // second_child process
-                        num_read =read(pipe_fd1[0], concat_str, strlen(concat_str));
-                        if(num_read < 0)
+                        
+                        num_read = read(pipe_fd1[0], buffer2, 11);
+                        if(num_read<0)
                         {
-                            printf("Okunmadı");
+                            perror("Error");
                             exit(EXIT_FAILURE);
                         }
-                        close(pipe_fd1[0]);
-                        printf("Writing to pipe\n");
-                        printf("pipeing: %s\n",concat_str);
-                        write(STDIN_FILENO, concat_str, strlen(concat_str));
+                        
+             
+                        int fd2 = open(buffer2, O_RDONLY);
+                        dup2(fd2, STDIN_FILENO);
+
                         sres = shell_exec_cmd(cl_ptr->second_argv);
-                        close(STDIN_FILENO);
-                        if(close(pipe_fd1[1]) == -1)
-                        {
-                            perror("pipe closing error!\n");
-                            shell_free_args(cl_ptr);
-                            exit(EXIT_FAILURE);
-                        }
-                        shell_free_args(cl_ptr);
+                        close(fd2);
+                        //close(pipe_fd1[0]);
+                        close(pipe_fd1[1]);
+                        
                         exit(sres);
                         break;
                     }
@@ -261,7 +245,7 @@ int main(int argc, char *argv[])
                         printf("Exit status of the second_child was %d\n",
                                child_retval2);
                     }
-                    shell_free_args(cl_ptr);
+                    //shell_free_args(cl_ptr);
                 }
                 shell_free_args(cl_ptr);
             } /* else */
