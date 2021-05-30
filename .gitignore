@@ -56,4 +56,5 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+gsu_shell
 # End of https://www.toptal.com/developers/gitignore/api/c
