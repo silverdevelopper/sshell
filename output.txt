@@ -3,7 +3,6 @@ README.md
 gsu_shell
 gsu_shell.c
 gsu_shell.dSYM
-input.txt
 output.txt
 parser.c
 parser.h

@@ -1,5 +1,9 @@
 #include "process.h"
-
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
 int shell_exec_cmd(char **argv) {
     execvp(argv[0], argv);
 

@@ -157,6 +157,8 @@ int main(int argc, char *argv[])
                     if (cl_ptr->has_pipe)
                     {
 
+                        fptr = fopen("output.txt","w");
+                        fclose(fptr);
                         file_desc = open("output.txt", O_WRONLY);
                         if (file_desc < 0)
                         {
